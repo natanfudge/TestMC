@@ -18,6 +18,12 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.World;
 
+//TODO: complete docs with new ideas
+/**
+ * So how does TestMC work?
+ * At first, TestMc runs Minecraft using devLaunchInjector, as well as some config files.
+ *
+ */
 public class TestMC implements ModInitializer {
 
 	@Override
@@ -28,7 +34,7 @@ public class TestMC implements ModInitializer {
 		addTestBlock();
 
 		System.out.println("Hello Fabric world!");
-//		throw new NullPointerException();
+		throw new NullPointerException();
 	}
 
 	private void checkIfTitleScreenLoaded() {
@@ -36,10 +42,12 @@ public class TestMC implements ModInitializer {
 			//TODO: this should be more customizable
 
 			// Signal the test method that it needs to move on, the test needs to end.
-			Object testResultHolder = TestLock.getInstance();
-			synchronized (testResultHolder){
-				testResultHolder.notify();
-			}
+//			Object testResultHolder = TestLock.getInstance();
+//			synchronized (testResultHolder){
+//				testResultHolder.notify();
+//			}
+
+			throw new EndTestException();
 		});
 	}
 

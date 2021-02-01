@@ -30,24 +30,57 @@ version = prop("mod_version")
 group = prop("maven_group")
 
 
+//val namedTest by tasks.creating
+
+
+//TODO: find the original launch.cfg, and then with a regex replace fabric.development to false, and inject that into the mod jar and use it in the test as a resource.
+
+dependencies {
+    // To change the versions see the gradle.properties file
+    minecraft("com.mojang:minecraft:${prop("minecraft_version")}")
+    mappings("net.fabricmc:yarn:${prop("yarn_mappings")}:v2")
+    modImplementation("net.fabricmc:fabric-loader:${prop("loader_version")}")
+
+    // Fabric API. This is technically optional, but you probably want it anyway.
+    modImplementation("net.fabricmc.fabric-api:fabric-api:${prop("fabric_version")}")
+
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.0")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.0")
+
+    testImplementation("net.fabricmc:dev-launch-injector:0.2.1+build.8")
+
+    // PSA: Some older mods, compiled on Loom 0.2.1, might have outdated Maven POMs.
+    // You may need to force-disable transitiveness on them.
+}
+
+tasks.withType<ProcessResources> {
+    inputs.property("version", project.version)
+
+    filesMatching("fabric.mod.json") {
+        expand("version" to project.version)
+    }
+}
+
+
 val intermediaryTestsRunDir = file("$buildDir/intermediary_tests")
 val namedTestsRunDir = file("$buildDir/named_tests")
 if (!intermediaryTestsRunDir.exists()) intermediaryTestsRunDir.mkdirs()
 if (!namedTestsRunDir.exists()) namedTestsRunDir.mkdirs()
 
+
 val copyModIntJars by tasks.creating(Copy::class) {
     group = "integrated Tests"
     dependsOn("remapJar")
-    val remapJarTask = tasks.withType<RemapJarTask>().find { it.name == "remapJar" }
-        ?: error("Could not find remapJar task. Make sure Loom is applied!")
+    val modIntermediaryJar = getModIntermediaryJar()
+
     afterEvaluate {
-        from(remapJarTask.archiveFile, *getOriginalModDependencies().toTypedArray())
+        from(modIntermediaryJar, *getOriginalModDependencies().toTypedArray())
     }
 
     val modDir = "$intermediaryTestsRunDir/mods"
     into(modDir)
 
-    val currentModJarName = remapJarTask.archiveFile.get().asFile.name
+    val currentModJarName = modIntermediaryJar.get().asFile.name
     doLast {
         // Make sure we don't leave any old mod jars
         for (fileName in file(modDir).list()) {
@@ -122,8 +155,11 @@ val addDevLaunchConfig by tasks.creating(Copy::class) {
 }
 
 tasks.withType<Test> {
+    // Without this tests don't actually print without the -i flag
     fixConsoleOutput()
+    // Required
     useJUnitPlatform()
+    // Without this tests won't rerun when no changes occur
     outputs.upToDateWhen { false }
 }
 
@@ -133,36 +169,6 @@ tasks.getByName<Test>("test"){
     dependsOn(addDevLaunchConfig)
 }
 
-//val namedTest by tasks.creating
-
-
-//TODO: find the original launch.cfg, and then with a regex replace fabric.development to false, and inject that into the mod jar and use it in the test as a resource.
-
-dependencies {
-    // To change the versions see the gradle.properties file
-    minecraft("com.mojang:minecraft:${prop("minecraft_version")}")
-    mappings("net.fabricmc:yarn:${prop("yarn_mappings")}:v2")
-    modImplementation("net.fabricmc:fabric-loader:${prop("loader_version")}")
-
-    // Fabric API. This is technically optional, but you probably want it anyway.
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${prop("fabric_version")}")
-
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.0")
-
-    testImplementation("net.fabricmc:dev-launch-injector:0.2.1+build.8")
-
-    // PSA: Some older mods, compiled on Loom 0.2.1, might have outdated Maven POMs.
-    // You may need to force-disable transitiveness on them.
-}
-
-tasks.withType<ProcessResources> {
-    inputs.property("version", project.version)
-
-    filesMatching("fabric.mod.json") {
-        expand("version" to project.version)
-    }
-}
 
 fun Test.fixConsoleOutput() {
     testLogging {
@@ -278,7 +284,7 @@ fun setClasspathToIntermediary(
         return filters
     }
 
-    val addedIntJars = project.files(getIntermediaryMcJar()!!, buildGradle.getIntermediaryLoaderJar())
+    val addedIntJars = project.files(getIntermediaryMcJar()!!, buildGradle.getIntermediaryLoaderJar(), getModIntermediaryJar())
 
     println("Adding jars to classpath: ${addedIntJars.map { it.name }}")
 
@@ -286,4 +292,10 @@ fun setClasspathToIntermediary(
         val filtered = namedJarsToBeFilteredOut.any { it.filtersOutClasspathEntry(cpEntry) }
         !filtered
     } + addedIntJars
+}
+
+fun Build_gradle.getModIntermediaryJar(): Provider<RegularFile> {
+    val remapJarTask = tasks.withType<RemapJarTask>().find { it.name == "remapJar" }
+        ?: error("Could not find remapJar task. Make sure Loom is applied!")
+    return remapJarTask.archiveFile
 }

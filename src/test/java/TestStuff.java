@@ -1,40 +1,59 @@
+import io.github.natanfudge.impl.EndTestException;
 import io.github.natanfudge.impl.utils.TestLock;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TestStuff {
     @Test
     public void test() throws Throwable {
-        AtomicReference<Throwable> mcError = new AtomicReference<>(null);
+//        AtomicReference<Throwable> mcError = new AtomicReference<>(null);
 
         Object titleScreenLock = TestLock.getInstance();
 
-        startMinecraft(mcError, titleScreenLock);
+        //TODO: make the framework take a method reference (or even lambda), and run it in the proper mc classloader.
+        startMinecraft();
 
-        waitUntilTestCanBeCompleted(titleScreenLock);
+//        waitUntilTestCanBeCompleted(titleScreenLock);
 
-        if (mcError.get() != null) {
-            throw mcError.get();
-        }
 
     }
 
-    private void startMinecraft(AtomicReference<Throwable> mcError, Object titleScreenLock) {
+    private void startMinecraft() throws Throwable {
         System.setProperty("fabric.dli.config", "launch.cfg");
         System.setProperty("fabric.dli.env", "client");
         System.setProperty("fabric.dli.main", "net.fabricmc.loader.launch.knot.KnotClient");
-        new Thread(() -> {
-            try {
-                //TODO: consider PR'ing a change to Fabric Loader that allows just straight up crashing instead of showing the swing GUI when there's an error.
-                net.fabricmc.devlaunchinjector.Main.main(new String[]{});
-            } catch (Throwable throwable) {
-                mcError.set(throwable);
-                synchronized (titleScreenLock) {
-                    titleScreenLock.notify();
-                }
-            }
-        }).start();
+//        new Thread(() -> {
+        try {
+            //TODO: consider PR'ing a change to Fabric Loader that allows just straight up crashing instead of showing the swing GUI when there's an error.
+            net.fabricmc.devlaunchinjector.Main.main(new String[]{});
+        } catch (Exception e) {
+            List<Throwable> involved = allInvolvedExceptions(e);
+            if (involved.stream().anyMatch(t -> t.getClass().getName().equals("io.github.natanfudge.impl.EndTestException"))) return;
+            throw e;
+//                if (!(throwable instanceof EndTestException)) {
+//                    throw throwable;
+//                }
+//                mcError.set(throwable);
+//                synchronized (titleScreenLock) {
+//                    titleScreenLock.notify();
+//                }
+        }
+//        }).start();
+    }
+
+    private static List<Throwable> allInvolvedExceptions(Throwable e) {
+        List<Throwable> involvedExceptions = new ArrayList<>();
+        allInvolvedExceptionsRecur(e, involvedExceptions);
+        return involvedExceptions;
+    }
+
+    private static void allInvolvedExceptionsRecur(Throwable e, List<Throwable> accumulatedList) {
+        accumulatedList.add(e);
+        if (e.getCause() != null) {
+            allInvolvedExceptionsRecur(e.getCause(), accumulatedList);
+        }
     }
 
     private void waitUntilTestCanBeCompleted(Object titleScreenLock) {
