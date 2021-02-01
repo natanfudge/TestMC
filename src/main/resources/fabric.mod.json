@@ -9,28 +9,24 @@
     "Fudge"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "homepage": "https://github.com/natanfudge/TestMC",
+    "sources": "https://github.com/natanfudge/TestMC",
+    "issues": "https://github.com/natanfudge/TestMC/issues"
   },
 
-  "license": "CC0-1.0",
+  "license": "MIT",
   "icon": "assets/modid/icon.png",
 
   "environment": "*",
   "entrypoints": {
     "main": [
-      "io.github.natanfudge.TestMC"
+      "io.github.natanfudge.impl.TestMC"
     ]
   },
   "mixins": [
-    "modid.mixins.json"
+    "testmc.mixins.json"
   ],
-
   "depends": {
-    "fabricloader": ">=0.7.4",
-    "minecraft": "1.16.x"
-  },
-  "suggests": {
-    "another-mod": "*"
+    "fabricloader": ">=0.7.4"
   }
 }

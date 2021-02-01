@@ -1,4 +1,4 @@
-package io.github.natanfudge;
+package io.github.natanfudge.impl;
 
 import io.github.natanfudge.impl.events.TitleScreenLoadedEvent;
 import io.github.natanfudge.impl.utils.TestLock;
@@ -23,16 +23,27 @@ public class TestMC implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		//TODO: this might not get called in a case a mod crashes, more testing is required.
+		checkIfTitleScreenLoaded();
+
+		addTestBlock();
+
+		System.out.println("Hello Fabric world!");
+//		throw new NullPointerException();
+	}
+
+	private void checkIfTitleScreenLoaded() {
 		TitleScreenLoadedEvent.EVENT.register(() -> {
+			//TODO: this should be more customizable
+
+			// Signal the test method that it needs to move on, the test needs to end.
 			Object testResultHolder = TestLock.getInstance();
 			synchronized (testResultHolder){
 				testResultHolder.notify();
 			}
 		});
+	}
 
-
-
-		System.out.println("ALO MOD EXISTS");
+	private void addTestBlock() {
 		Block block = new Block(AbstractBlock.Settings.of(Material.BAMBOO)){
 			@Override
 			public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
@@ -44,12 +55,5 @@ public class TestMC implements ModInitializer {
 
 		Registry.register(Registry.BLOCK,new Identifier("crashmod","crashblock"), block);
 		Registry.register(Registry.ITEM,new Identifier("crashmod","crashblock"), item);
-
-		// This code runs as soon as Minecraft is in a mod-load-ready state.
-		// However, some things (like resources) may still be uninitialized.
-		// Proceed with mild caution.
-
-		System.out.println("Hello Fabric world!");
-//		throw new NullPointerException();
 	}
 }

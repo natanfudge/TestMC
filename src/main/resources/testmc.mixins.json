@@ -1,13 +1,13 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "net.fabricmc.example.mixin",
+  "package": "io.github.natanfudge.impl.mixin",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
   ],
   "client": [
-    "io.github.natanfudge.mixin.client.TitleScreenMixin",
-    "io.github.natanfudge.mixin.client.MinecraftClientMixin"
+    "client.TitleScreenMixin",
+    "client.MinecraftClientMixin"
   ],
   "injectors": {
     "defaultRequire": 1

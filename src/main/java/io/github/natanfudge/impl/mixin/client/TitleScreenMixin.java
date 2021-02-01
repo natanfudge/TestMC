@@ -11,6 +11,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class TitleScreenMixin {
     private boolean renderedBefore = false;
 
+    // render() is only called once Minecraft has fully finished loading.
+    // Can't find any better way of figuring out when that happens other than checking the first time render() is called.
     @Inject(at = @At("HEAD"), method = "render")
     private void onRender(CallbackInfo info) {
         if (!renderedBefore) {

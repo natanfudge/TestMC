@@ -9,18 +9,21 @@ public class TestLock {
     public static Object instance = null;
 
     /**
-     * Retrieve an instance of AbsoluteSingleton from the original classloader. This is a true
-     * Singleton, in that there will only be one instance of this object in the virtual machine,
-     * even though there may be several copies of its class file loaded in different classloaders.
+     * Retrieve some TRUELY singleton Object. There can only be one, even across different class loaders.
      */
     public synchronized static Object getInstance() {
         ClassLoader myClassLoader = Object.class.getClassLoader();
 
         if (instance == null) {
+            // The point is that we will only use ONE classloader.
+            // the instance will be stored in the "root class loader", aka the appClassLoader.
             ClassLoader rootClassLoader = getRootClassLoader();
             if (myClassLoader == rootClassLoader) {
+                // If this is the appClassLoader then we can just use normal java to do this, woohoo.
                 instance = new Object();
             } else {
+                // If this is not appClassLoader, then we need to get the instance from appClassLoader using reflection.
+                // If there is no instance yet, we will put one there.
                 try {
                     Class<?> absoluteSingletonClassInAppLoader = rootClassLoader.loadClass(TestLock.class.getName());
                     Field instanceFieldInAppLoader = absoluteSingletonClassInAppLoader.getField("instance");
@@ -43,6 +46,11 @@ public class TestLock {
     }
 
     private static ClassLoader getRootClassLoader() {
+        // Minecraft class loader parent hierarchy looks like this:
+        // null -> platformClassLoader -> appClassLoader -> someFLoaderBsLoader1 -> someFLoaderBsLoader2 -> minecraftClassLoader
+        // Test class loader parent hierarchy looks like this:
+        // null -> platformClassLoader -> appClassLoader.
+        // Therefore the best way to find the common ancestor (appClassLoader) is going up and up until loader.getParent().getParent() == null
         ClassLoader currentLoader = TestLock.class.getClassLoader();
         while(!isRootClassLoader(currentLoader)) {
             currentLoader = currentLoader.getParent();

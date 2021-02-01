@@ -1,4 +1,3 @@
-import net.fabricmc.devlaunchinjector.Main;
 import io.github.natanfudge.impl.utils.TestLock;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +26,8 @@ public class TestStuff {
         System.setProperty("fabric.dli.main", "net.fabricmc.loader.launch.knot.KnotClient");
         new Thread(() -> {
             try {
-                Main.main(new String[]{});
+                //TODO: consider PR'ing a change to Fabric Loader that allows just straight up crashing instead of showing the swing GUI when there's an error.
+                net.fabricmc.devlaunchinjector.Main.main(new String[]{});
             } catch (Throwable throwable) {
                 mcError.set(throwable);
                 synchronized (titleScreenLock) {
