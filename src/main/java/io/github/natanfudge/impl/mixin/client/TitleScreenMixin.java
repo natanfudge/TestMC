@@ -16,7 +16,7 @@ public class TitleScreenMixin {
     @Inject(at = @At("HEAD"), method = "render")
     private void onRender(CallbackInfo info) {
         if (!renderedBefore) {
-            TitleScreenLoadedEvent.EVENT.invoker().onTitleScreenLoaded();
+            TitleScreenLoadedEvent.getEVENT().invoker().onTitleScreenLoaded();
             renderedBefore = true;
         }
     }

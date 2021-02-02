@@ -4,13 +4,14 @@ import net.fabricmc.loom.task.RemapJarTask
 import net.fabricmc.loom.util.Constants.MOD_COMPILE_ENTRIES
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.io.IOException
-import java.nio.file.Files
 import java.util.zip.ZipFile
 
 plugins {
-    id("fabric-loom") version ("0.5-SNAPSHOT")
+    id("fabric-loom")
     id("maven-publish")
+    kotlin("jvm")
 }
 
 java {
@@ -30,10 +31,7 @@ version = prop("mod_version")
 group = prop("maven_group")
 
 
-//val namedTest by tasks.creating
 
-
-//TODO: find the original launch.cfg, and then with a regex replace fabric.development to false, and inject that into the mod jar and use it in the test as a resource.
 
 dependencies {
     // To change the versions see the gradle.properties file
@@ -49,6 +47,8 @@ dependencies {
 
     testImplementation("net.fabricmc:dev-launch-injector:0.2.1+build.8")
 
+    modImplementation("net.fabricmc:fabric-language-kotlin:${prop("flk_version")}")
+
     // PSA: Some older mods, compiled on Loom 0.2.1, might have outdated Maven POMs.
     // You may need to force-disable transitiveness on them.
 }
@@ -61,83 +61,79 @@ tasks.withType<ProcessResources> {
     }
 }
 
-
-val intermediaryTestsRunDir = file("$buildDir/intermediary_tests")
-val namedTestsRunDir = file("$buildDir/named_tests")
-if (!intermediaryTestsRunDir.exists()) intermediaryTestsRunDir.mkdirs()
-if (!namedTestsRunDir.exists()) namedTestsRunDir.mkdirs()
-
-
-val copyModIntJars by tasks.creating(Copy::class) {
-    group = "integrated Tests"
-    dependsOn("remapJar")
-    val modIntermediaryJar = getModIntermediaryJar()
-
-    afterEvaluate {
-        from(modIntermediaryJar, *getOriginalModDependencies().toTypedArray())
-    }
-
-    val modDir = "$intermediaryTestsRunDir/mods"
-    into(modDir)
-
-    val currentModJarName = modIntermediaryJar.get().asFile.name
-    doLast {
-        // Make sure we don't leave any old mod jars
-        for (fileName in file(modDir).list()) {
-            if (fileName == currentModJarName) continue
-            if (fileName.startsWith("${base.archivesBaseName}-") && fileName.endsWith(".jar")) {
-                val oldFile = file("$modDir/$fileName")
-                println("Deleting old mc jar: $oldFile")
-                oldFile.delete()
-            }
-        }
-    }
+tasks.withType<KotlinCompile> {
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 
-val copyMinecraftIntJar by tasks.creating(Copy::class) {
+/**
+ * Named tests are just normal tests using a different directory.
+ * Intermediary tests are special. They remove everything that uses 'named' identifiers, and replace it with the equivalent that uses intermediary identifiers.
+ * For Minecraft: that is the mc jar in the global loom cache that is mapped to intermediary;
+ * For mod dependencies: that is the modCompile dependencies that were fetched by gradle and put in the global loom cache, before Loom touched them;
+ * For the mod itself: that is the output of the remapJar task.
+ */
+
+val intermediaryTestsRunDir = buildDir.resolve("intermediary_tests")
+val namedTestsRunDir = buildDir.resolve("named_tests")
+intermediaryTestsRunDir.mkdirs()
+namedTestsRunDir.mkdirs()
+
+
+val supplyIntermediaryModJars by tasks.creating(Copy::class) {
+    group = "integrated Tests"
+    dependsOn("remapJar")
+
+    val modIntermediaryJar = getModIntermediaryJar()
+    afterEvaluate {
+        val dependencyModJars = getOriginalModDependencies()
+        from(modIntermediaryJar, *dependencyModJars.toTypedArray())
+
+        val intermediaryModDir = intermediaryTestsRunDir.resolve("mods")
+        into(intermediaryModDir)
+
+        doLast {
+            // Make sure we don't leave any old jars from older versions
+            intermediaryModDir.deleteEverythingExceptNamedSame(dependencyModJars + modIntermediaryJar)
+        }
+    }
+
+}
+
+
+val supplyMinecraftIntermediaryJar by tasks.creating(Copy::class) {
     group = "integrated tests"
     afterEvaluate {
         val intJar = getIntermediaryMcJar()!!
+        val loaderIntermediaryMcJarCache = intermediaryTestsRunDir.resolve(".fabric").resolve("remappedJars")
+        val currentVersionIntMcDir = loaderIntermediaryMcJarCache.resolve("minecraft-${getMinecraftVersion()}")
+
+        from(intJar)
+        into(currentVersionIntMcDir)
+
         // When not in development mode, Loader looks at the INTERMEDIARY jar as if it's the official jar, in an attempt to find something to remap.
         // It first checks if it has already remapped the jar to intermediary,
         // in <run_dir>/.fabric/remappedJars/minecraft-<mc_version>//intermediary-<official_jar_name>.
         // SO if we already put the intermediary jar in there, it won't need to remap anything and will just use the intermediary jar straightaway.
         val newName = "intermediary-${intJar.name}"
-        from(intJar)
-        val mcVersion = getLoom().minecraftProvider.minecraftVersion
-        val mappedMcDir = "$intermediaryTestsRunDir/.fabric/remappedJars/"
-        into("$mappedMcDir/minecraft-$mcVersion")
-
         rename { newName }
 
         doLast {
-            Files.walk(File(mappedMcDir).toPath()).forEach {
-                if (Files.isDirectory(it)) return@forEach
-                if (it.fileName.toString() != newName) Files.delete(it)
-            }
+            loaderIntermediaryMcJarCache.deleteEverythingExceptNamedSame(listOf(File(newName)))
         }
     }
 }
-val originalConfigFile = getLoom().devLauncherConfig
 
-val addProductionLaunchConfig by tasks.creating {
-    group = "integrated tests"
-
-    val newConfigFile = File("$intermediaryTestsRunDir/launch.cfg")
-    inputs.file(originalConfigFile)
-    outputs.file(newConfigFile)
-
-    doLast {
-        val originalConfig = originalConfigFile.readText()
-        val newConfig = originalConfig.replace("fabric.development=true","fabric.development=false")
-        newConfigFile.writeText(newConfig)
-    }
+val supplyProductionLaunchConfig by transformTask(
+    group = "integrated tests",
+    fromFile = getDevLaunchConfig(),
+    toFile = intermediaryTestsRunDir.resolve("launch.cfg")
+) {
+    it.replace("fabric.development=true", "fabric.development=false")
 }
 
 
-
-val intermediaryTest by tasks.creating(Test::class){
+val intermediaryTest by tasks.creating(Test::class) {
     group = "integrated tests"
 
     workingDir = intermediaryTestsRunDir
@@ -145,15 +141,16 @@ val intermediaryTest by tasks.creating(Test::class){
         setClasspathToIntermediary(this, this@Build_gradle, this@creating)
     }
 
-    dependsOn(copyModIntJars, copyMinecraftIntJar,addProductionLaunchConfig)
+    dependsOn(supplyIntermediaryModJars, supplyMinecraftIntermediaryJar, supplyProductionLaunchConfig)
 }
 
-val addDevLaunchConfig by tasks.creating(Copy::class) {
+val supplyDevLaunchConfig by tasks.creating(Copy::class) {
     group = "integrated tests"
-    from(originalConfigFile)
+    from(getDevLaunchConfig())
     into(namedTestsRunDir)
 }
 
+// Apply to all test types
 tasks.withType<Test> {
     // Without this tests don't actually print without the -i flag
     fixConsoleOutput()
@@ -163,10 +160,10 @@ tasks.withType<Test> {
     outputs.upToDateWhen { false }
 }
 
-tasks.getByName<Test>("test"){
+tasks.getByName<Test>("test") {
     group = "integrated tests"
     workingDir = namedTestsRunDir
-    dependsOn(addDevLaunchConfig)
+    dependsOn(supplyDevLaunchConfig)
 }
 
 
@@ -218,8 +215,13 @@ fun Test.fixConsoleOutput() {
     }
 }
 
+/** Must only be called in afterEvaluate! */
 fun getIntermediaryMcJar(): File? {
-    return getLoom().minecraftMappedProvider.intermediaryJar
+    return try {
+        getLoom().minecraftMappedProvider.intermediaryJar
+    } catch (e: NullPointerException) {
+        null
+    }
 }
 
 fun getNamedMcJar(): File? {
@@ -260,6 +262,7 @@ fun isFabricMod(artifact: ResolvedArtifact): Boolean {
     }
 }
 
+
 fun setClasspathToIntermediary(
     project: Project,
     buildGradle: Build_gradle,
@@ -267,35 +270,55 @@ fun setClasspathToIntermediary(
 ) {
     val remappedDependencyMods = getLoom().remappedModCache
 
+    val nonTestResourceDirectories = project.tasks.withType<ProcessResources>()
+        .filter { !it.name.startsWith("processTestResources") }
+        .map { it.destinationDir }
+    val nonTestBinaryDirectories = project.tasks.withType<AbstractCompile>()
+        .filter { !it.name.startsWith("compileTest") }
+        .map { it.destinationDir }
+
     val namedJarsToBeFilteredOut = listOf(
-        project.tasks.processResources.get().destinationDir,
         getNamedMcJar()!!,
         remappedDependencyMods
-    ) + project.tasks.withType<AbstractCompile>()
-        .filter { !it.name.startsWith("compileTest") }
-        .map {
-            it.destinationDir
-        }
+    ) + nonTestResourceDirectories + nonTestBinaryDirectories
 
-
-    fun File.filtersOutClasspathEntry(entry: File): Boolean {
-        val filters = if (this.isDirectory) entry.absolutePath.startsWith(this.absolutePath)
-        else this.absolutePath == entry.absolutePath
-        return filters
-    }
 
     val addedIntJars = project.files(getIntermediaryMcJar()!!, buildGradle.getIntermediaryLoaderJar(), getModIntermediaryJar())
 
-    println("Adding jars to classpath: ${addedIntJars.map { it.name }}")
+    fun File.filtersOutClasspathEntry(entry: File): Boolean {
+        return if (isDirectory) entry.absolutePath.startsWith(absolutePath)
+        else absolutePath == entry.absolutePath
+    }
 
+    // Remove named cp entries and add intermediary cp entries
     test.classpath = test.classpath.filter { cpEntry ->
-        val filtered = namedJarsToBeFilteredOut.any { it.filtersOutClasspathEntry(cpEntry) }
-        !filtered
+       namedJarsToBeFilteredOut.all { !it.filtersOutClasspathEntry(cpEntry) }
     } + addedIntJars
 }
 
-fun Build_gradle.getModIntermediaryJar(): Provider<RegularFile> {
+fun getModIntermediaryJar(): File {
     val remapJarTask = tasks.withType<RemapJarTask>().find { it.name == "remapJar" }
         ?: error("Could not find remapJar task. Make sure Loom is applied!")
-    return remapJarTask.archiveFile
+    return remapJarTask.archiveFile.get().asFile
+}
+
+fun getMinecraftVersion() = getLoom().minecraftProvider.minecraftVersion
+
+fun getDevLaunchConfig() = getLoom().devLauncherConfig
+
+fun File.deleteEverythingExceptNamedSame(except: List<File>) {
+    val exceptSet = except.map { it.name }.toSet()
+    walk().forEach {
+        if (!it.isDirectory && it.name !in exceptSet) it.delete()
+    }
+}
+
+fun transformTask(group: String, fromFile: File, toFile: File, transform: (String) -> String) = tasks.creating {
+    this.group = group
+    inputs.file(fromFile)
+    outputs.file(toFile)
+
+    doLast {
+        toFile.writeText(transform(fromFile.readText()))
+    }
 }
