@@ -31,6 +31,19 @@ version = prop("mod_version")
 group = prop("maven_group")
 
 
+repositories{
+//    jcenter()
+    maven ( url  ="https://dl.bintray.com/shedaniel/cloth" )
+    maven (url = "https://jitpack.io"){
+        metadataSources {
+            mavenPom()
+            artifact()
+        }
+        content {
+            includeGroupByRegex ("com.github.Chocohead")
+        }
+    }
+}
 
 
 dependencies {
@@ -41,6 +54,13 @@ dependencies {
 
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation("net.fabricmc.fabric-api:fabric-api:${prop("fabric_version")}")
+    modImplementation("net.fabricmc:dev-launch-injector:0.2.1+build.8")
+    modImplementation("me.shedaniel:architectury:${prop("architectury_version")}:fabric")
+    modRuntime ("com.github.Chocohead:Data-Breaker-Lower:24be1a2"){
+        exclude (module = "fabric-loader")
+        exclude (group = "net.fabricmc.fabric-api")
+    }
+
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.0")

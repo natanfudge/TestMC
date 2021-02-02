@@ -1,6 +1,6 @@
 package io.github.natanfudge.impl.mixin.client;
 
-import io.github.natanfudge.impl.events.TitleScreenLoadedEvent;
+import io.github.natanfudge.impl.utils.Events;
 import net.minecraft.client.gui.screen.TitleScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -16,7 +16,7 @@ public class TitleScreenMixin {
     @Inject(at = @At("HEAD"), method = "render")
     private void onRender(CallbackInfo info) {
         if (!renderedBefore) {
-            TitleScreenLoadedEvent.getEVENT().invoker().onTitleScreenLoaded();
+            Events.INSTANCE.getOnTitleScreenLoaded().invoker().invoke();
             renderedBefore = true;
         }
     }

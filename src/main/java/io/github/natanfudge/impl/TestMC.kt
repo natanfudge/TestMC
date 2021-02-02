@@ -2,9 +2,7 @@ package io.github.natanfudge.impl
 
 import net.fabricmc.api.ModInitializer
 import java.lang.NullPointerException
-import io.github.natanfudge.impl.events.TitleScreenLoadedEvent
-import io.github.natanfudge.impl.EndTestException
-import net.minecraft.block.AbstractBlock
+import io.github.natanfudge.impl.utils.CrossLoaderObjectImpl
 import net.minecraft.block.Block
 import net.minecraft.block.Material
 import net.minecraft.block.BlockState
@@ -26,17 +24,20 @@ import net.minecraft.util.registry.Registry
  * This way, when Minecraft throws, it will fail the test.
  * When the test is completed successfully, a [EndTestException] will be thrown, and silently handled, to signal the test run the test is successful.
  */
-class TestMC : ModInitializer {
+internal class TestMC : ModInitializer {
     override fun onInitialize() {
         //TODO: this might not get called in a case a mod crashes, more testing is required.
         checkIfTitleScreenLoaded()
         addTestBlock()
+
+
+
         println("Hello Fabric world!")
 //        throw NullPointerException()
     }
 
     private fun checkIfTitleScreenLoaded() {
-        TitleScreenLoadedEvent.EVENT.register(TitleScreenLoadedEvent { throw EndTestException() })
+//        TitleScreenLoadedEvent.EVENT.register(TitleScreenLoadedEvent { throw EndTestException() })
     }
 
     private fun addTestBlock() {
@@ -55,5 +56,14 @@ class TestMC : ModInitializer {
         val item = BlockItem(block, Item.Settings())
         Registry.register(Registry.BLOCK, Identifier("crashmod", "crashblock"), block)
         Registry.register(Registry.ITEM, Identifier("crashmod", "crashblock"), item)
+    }
+
+    //TODO: we are leaking a bit of test handlers here because projects aren't usually structured like this. When things are more similar to the normal structure
+    // we need to move things around.
+    companion object {
+        @JvmStatic
+        fun testMethod() {
+            println("cool classloader!")
+        }
     }
 }
