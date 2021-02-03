@@ -10,14 +10,11 @@ class TestStuff {
     @Test
     fun test() {
         MinecraftLifecycle.startClient {
-            launch {
-                println("Running user code!")
-                waitForGameToLoad {
-                    throw RuntimeException("oh no i fucked up")
+            println("Running user code!")
+            onGameLoaded {
+                openDemoWorld {
+                    closeMinecraft()
                 }
-//                println("Game loaded")
-//                openDemoWorld()
-//                println("World opened")
             }
         }
     }

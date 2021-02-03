@@ -19,31 +19,11 @@ private fun noArgs() = event<() -> Unit> { listeners ->
     }
 }
 
-//private val subscribedHudListeners = mutableListOf<HudRenderFunction>()
-//private var subscribedToHud = false
-
-
-operator fun <T> Event<T>.invoke(listener: T) = register(listener)
-
-//typealias HudRenderFunction = (MatrixStack, Float) -> Unit
-//
-//operator fun Event<HudRenderCallback>.invoke(listener: HudRenderFunction): HudRenderFunction {
-//    if (!subscribedToHud) {
-//        subscribedToHud = true
-//        register { stack, delta ->
-//            for (existingListener in subscribedHudListeners) {
-//                existingListener(stack, delta)
-//            }
-//        }
-//    }
-//    subscribedHudListeners.add(listener)
-//    return listener
-//}
-//
-//fun HudRenderFunction.unsubscribe(): Boolean = (subscribedHudListeners as MutableCollection<*>).remove(this)
-//
 
 object Events {
     val OnTitleScreenLoaded = noArgs()
+    //TODO: maybe use this for server tests, NOTE: currently only triggers based off of the integratedServer (client-only)
+    val OnServerWorldLoaded = noArgs()
+    val OnJoinClientWorld = noArgs()
 //    val WorldLoaded = noArgs()
 }

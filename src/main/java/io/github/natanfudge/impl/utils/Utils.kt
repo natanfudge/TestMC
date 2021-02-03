@@ -7,3 +7,8 @@ internal fun <T> flatten(obj : T, nextGetter: T.() -> T?) : List<T> = mutableLis
         current = current.nextGetter()
     }
 }
+private fun allInvolvedExceptions(e: Throwable) = flatten(e) { cause }
+
+fun Throwable.isSignalingEndOfTest() {
+
+}

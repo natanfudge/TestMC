@@ -12,6 +12,7 @@ plugins {
     id("fabric-loom")
     id("maven-publish")
     kotlin("jvm")
+    id( "com.github.fudge.forgedflowerloom") version "2.0.0"
 }
 
 java {

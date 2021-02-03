@@ -6,9 +6,11 @@
   "mixins": [
   ],
   "client": [
+    "client.ClientPlayNetworkHandlerMixin",
+    "client.IntegratedServerMixin",
+    "client.MainMixin",
     "client.MinecraftClientMixin",
-    "client.TitleScreenMixin",
-    "client.MainMixin"
+    "client.TitleScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,14 +1,11 @@
 package io.github.natanfudge
 
-import io.github.natanfudge.impl.EndTestException
 import io.github.natanfudge.impl.utils.CrossLoaderObjectImpl
 import io.github.natanfudge.impl.utils.Events
-import io.github.natanfudge.impl.utils.flatten
-import io.github.natanfudge.impl.utils.invoke
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import java.util.concurrent.locks.ReentrantLock
+import net.minecraft.client.MinecraftClient
+import net.minecraft.server.MinecraftServer
+import net.minecraft.util.registry.DynamicRegistryManager
+import net.minecraft.world.gen.GeneratorOptions
 import kotlin.concurrent.withLock
 
 fun interface TestCode {
@@ -27,32 +24,34 @@ object MinecraftLifecycle {
 
         val frameworkCode = TestCode {
             println("Framework code in classloader: ${MinecraftLifecycle.javaClass.classLoader}")
-//            with(MinecraftContext()){
-//                testCode()
-//            }
-//            TitleScreenLoadedEvent.EVENT.register(TitleScreenLoadedEvent { throw EndTestException() })
         }
-
-//        CrossLoaderObjectImpl.setInstance(CrossLoaderObjectImpl(methods))
 
         runInKnotClassLoader(listOf(testCode, frameworkCode))
 
-        try {
+        val clo = CrossLoaderObjectImpl.getInstance()!!
+        var error: Throwable? = null
+
+        Thread {
             //TODO: consider PR'ing a change to Fabric Loader that allows just straight up crashing instead of showing the swing GUI when there's an error.
-            net.fabricmc.devlaunchinjector.Main.main(arrayOf())
-        } catch (e: Throwable) {
-            val involved = allInvolvedExceptions(e)
-            if (involved.any { it.javaClass.name == "io.github.natanfudge.impl.EndTestException" }) return
-            throw e
+
+            try {
+                net.fabricmc.devlaunchinjector.Main.main(arrayOf())
+            } catch (e: Throwable) {
+                error = e
+                clo.lock.withLock {
+                    clo.condition.signal()
+                }
+            }
+
+        }.start()
+
+
+        clo.lock.withLock {
+            clo.condition.await()
         }
+        if (error != null) throw error!!
     }
 
-    fun MinecraftContext.frameworkCode() {
-
-    }
-
-
-    private fun allInvolvedExceptions(e: Throwable) = flatten(e) { cause }
 
     private fun runInKnotClassLoader(lambdas: List<TestCode>) {
         val methods = lambdas.map { it::class.java.getDeclaredMethod("run", MinecraftContext::class.java) }
@@ -62,71 +61,33 @@ object MinecraftLifecycle {
 }
 
 class MinecraftContext {
-    val lock = ReentrantLock()
-    val condition = lock.newCondition()
-    fun launch(testCode:  () -> Unit) {
-//        runBlocking {
-            testCode()
-//            closeMinecraft()
-//        }
-//        val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-//            //THROW
-//            throw throwable
-//        }
-//        // Create a new coroutine to avoid blocking the game;
-//        // Use Dispatchers.Unconfined to stay in the game thread.
-//        GlobalScope.launch(exceptionHandler + Dispatchers.Unconfined) {
-//            Thread.currentThread().setUncaughtExceptionHandler { _, throwable ->
-//                // FUCKING THROW!!!
-//                throw throwable
-//            }
-//            testCode()
-//
-//            closeMinecraft()
-//        }
-    }
-
-    fun waitForGameToLoad(callback : () -> Unit) {
-        Events.OnTitleScreenLoaded {
-            callback()
-//            lock.withLock {
-//                condition.signal()
-//            }
+    fun onGameLoaded(callback: GameLoaded.() -> Unit) {
+        Events.OnTitleScreenLoaded.register {
+            GameLoaded().callback()
         }
-//        lock.withLock {
-//            condition.await()
-//        }
     }
 
-//    suspend fun openDemoWorld() = suspendCoroutine<Unit> { continuation ->
-//        val registryManager = DynamicRegistryManager.create()
-//        MinecraftClient.getInstance()
-//            .method_29607(
-//                "Demo_World",
-//                MinecraftServer.DEMO_LEVEL_INFO,
-//                registryManager,
-//                GeneratorOptions.method_31112(registryManager)
-//            )
-//        ClientLifecycleEvent.CLIENT_WORLD_LOAD.register(ClientLifecycleEvent.ClientWorldState {
-//            continuation.resume(Unit)
-//        })
-//    }
-//
-//    suspend fun waitForGameToLoad() = suspendCoroutine<Unit> { continuation ->
-//        Events.OnTitleScreenLoaded {
-//            continuation.resume(Unit)
-//        }
-//    }
+    class GameLoaded {
+        fun openDemoWorld(onLoaded: () -> Unit) {
+            val registryManager = DynamicRegistryManager.create()
+
+            Events.OnJoinClientWorld.register {
+                onLoaded()
+            }
+            MinecraftClient.getInstance().method_29607(
+                "Demo_World",
+                MinecraftServer.DEMO_LEVEL_INFO,
+                registryManager,
+                GeneratorOptions.method_31112(registryManager)
+            )
+        }
+    }
 
     fun closeMinecraft() {
-        throw EndTestException()
+        val clo = CrossLoaderObjectImpl.getInstance()!!
+        clo.lock.withLock {
+            clo.condition.signal()
+        }
     }
 }
 
-fun main() = runBlocking {
-    val handler = Thread.getDefaultUncaughtExceptionHandler()
-    val x = 2
-    GlobalScope.launch {
-        throw IndexOutOfBoundsException()
-    }.join()
-}

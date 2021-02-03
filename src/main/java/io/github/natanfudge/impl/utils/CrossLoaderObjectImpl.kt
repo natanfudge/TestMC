@@ -3,13 +3,24 @@ package io.github.natanfudge.impl.utils
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
+import java.util.concurrent.locks.Condition
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
 
 
 internal interface CrossLoaderObject {
     val testMethods: List<Method>
+    var testDone: Boolean
+    val lock: Lock
+    val condition: Condition
 }
 
 internal class CrossLoaderObjectImpl(override val testMethods: List<Method>) : CrossLoaderObject {
+    override val lock: Lock = ReentrantLock()
+    override val condition: Condition = lock.newCondition()
+
+
+    override var testDone: Boolean = false
 
     companion object {
         @JvmStatic
@@ -47,7 +58,7 @@ internal class CrossLoaderObjectImpl(override val testMethods: List<Method>) : C
                 // So instead, we use java.lang.reflect.Proxy to wrap it in an object that *does*
                 // support our interface, and the proxy will use reflection to pass through all calls
                 // to the object.
-                return if(instanceInAppLoader == null) null else Proxy.newProxyInstance(
+                return if (instanceInAppLoader == null) null else Proxy.newProxyInstance(
                     myClassLoader,
                     arrayOf(CrossLoaderObject::class.java),
                     PassThroughProxyHandler(instanceInAppLoader)

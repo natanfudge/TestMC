@@ -19,26 +19,19 @@ import net.minecraft.util.registry.Registry
 
 /**
  * So how does TestMC work?
- * TestMc runs Minecraft using devLaunchInjector, as well as some config files.
+ * TestMc runs Minecraft using devLaunchInjector, as well as some config files in a new thread.
  * When an exception in Minecraft occurs, TestMC tries its best to make it actually be an unhandled exception, instead of a System.exit(), so it can catch it.
- * This way, when Minecraft throws, it will fail the test.
- * When the test is completed successfully, a [EndTestException] will be thrown, and silently handled, to signal the test run the test is successful.
+ * This way, when Minecraft throws, it will be caught and transferred to the original test thread, and fail the test.
+ * When the test is completed successfully, the lock that keeps the test from ending will be released, marking the test as successful.
  */
 internal class TestMC : ModInitializer {
     override fun onInitialize() {
-        //TODO: this might not get called in a case a mod crashes, more testing is required.
-        checkIfTitleScreenLoaded()
         addTestBlock()
-
-
 
         println("Hello Fabric world!")
 //        throw NullPointerException()
     }
 
-    private fun checkIfTitleScreenLoaded() {
-//        TitleScreenLoadedEvent.EVENT.register(TitleScreenLoadedEvent { throw EndTestException() })
-    }
 
     private fun addTestBlock() {
         val block: Block = object : Block(Settings.of(Material.BAMBOO)) {

@@ -1,3 +1,3 @@
 package io.github.natanfudge.impl
 
-internal class EndTestException : RuntimeException()
+//internal class EndTestException : RuntimeException()

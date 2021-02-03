@@ -1,5 +1,6 @@
 package io.github.natanfudge.impl.mixin.client;
 
+import io.github.natanfudge.impl.utils.Events;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.crash.CrashReport;
 import org.apache.logging.log4j.Logger;
@@ -27,7 +28,7 @@ public class MinecraftClientMixin {
     }
 
     @Redirect(method = {"stop"}, at = @At(value = "INVOKE", target = "Ljava/lang/System;exit(I)V"))
-    private  void redirectSystemExitInStop(int status) throws Throwable {
+    private void redirectSystemExitInStop(int status) throws Throwable {
         // Normally Minecraft does System.exit(-1) when initialization errors, but this doesn't get accepted well in test systems, so we throw instead.
         throw error;
     }
@@ -38,12 +39,13 @@ public class MinecraftClientMixin {
     }
 
     @Redirect(method = "run", at = @At(value = "INVOKE", target = "Lorg/apache/logging/log4j/Logger;fatal(Ljava/lang/String;Ljava/lang/Throwable;)V"))
-    private void silenceExceptions(Logger logger, String message, Throwable t){
+    private void silenceExceptions(Logger logger, String message, Throwable t) {
 
     }
 
-    @Redirect(method = "method_31382",at= @At(value = "INVOKE", target = "Lorg/apache/logging/log4j/Logger;error(Ljava/lang/String;Ljava/lang/Throwable;)V"))
-    private void shutTheFuckUp(Logger logger, String message, Throwable t){
+    // shut the fuck up
+    @Redirect(method = "method_31382", at = @At(value = "INVOKE", target = "Lorg/apache/logging/log4j/Logger;error(Ljava/lang/String;Ljava/lang/Throwable;)V"))
+    private void shutTheFuckUp(Logger logger, String message, Throwable t) {
     }
 
 
