@@ -1,48 +1,24 @@
 import io.github.natanfudge.MinecraftLifecycle
-import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import io.github.natanfudge.impl.mixinhandlers.ServerMixinHandler
+import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 
 
 class TestStuff {
-
     @Test
-    fun test() {
+    fun testClient() {
         MinecraftLifecycle.startClient {
-            println("Running user code!")
-            onGameLoaded {
-                openDemoWorld {
-                    closeMinecraft()
-                }
-            }
+            waitForGameToLoad()
+            openDemoWorld()
         }
     }
+}
 
-
+class TestStuff2 {
     @Test
-    fun tryToThrow1() {
-        GlobalScope.launch {
-            throw RuntimeException()
+    fun testServer() {
+        MinecraftLifecycle.startServer {
+            waitForWorldToLoad()
         }
-        Thread.sleep(500)
-    }
-
-
-    @Test
-    fun tryToThrow2() {
-        GlobalScope.launch(CoroutineExceptionHandler { _, throwable -> throw throwable }) {
-            throw RuntimeException()
-        }
-        Thread.sleep(500)
-    }
-
-    @Test
-    fun tryToThrow3() {
-        GlobalScope.launch(CoroutineExceptionHandler { _, throwable -> throw throwable }) {
-            Thread.setDefaultUncaughtExceptionHandler { _, e -> throw e }
-            throw RuntimeException()
-        }
-        Thread.sleep(1000)
     }
 }

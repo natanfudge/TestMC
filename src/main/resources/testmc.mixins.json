@@ -4,13 +4,20 @@
   "package": "io.github.natanfudge.impl.mixin",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
+    "MinecraftServerMixin"
   ],
   "client": [
+    "client.ClientMainMixin",
     "client.ClientPlayNetworkHandlerMixin",
     "client.IntegratedServerMixin",
-    "client.MainMixin",
     "client.MinecraftClientMixin",
     "client.TitleScreenMixin"
+  ],
+  "server": [
+    "server.AbstractPropertyHandlerMixin",
+    "server.EulaReaderMixin",
+    "server.MinecraftDedicatedServerMixin",
+    "server.ServerMainMixin"
   ],
   "injectors": {
     "defaultRequire": 1

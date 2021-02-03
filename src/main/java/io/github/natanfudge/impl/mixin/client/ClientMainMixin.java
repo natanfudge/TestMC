@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Main.class)
-public class MainMixin {
+public class ClientMainMixin {
     // This just prevents it from printing the exception twice.
     @Redirect(method = "main", at = @At(value = "INVOKE", target = "Lorg/apache/logging/log4j/Logger;error(Ljava/lang/String;Ljava/lang/Throwable;)V"))
     private static void silenceFatalErrors(Logger logger, String message, Throwable t){

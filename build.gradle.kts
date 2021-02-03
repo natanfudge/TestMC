@@ -12,7 +12,7 @@ plugins {
     id("fabric-loom")
     id("maven-publish")
     kotlin("jvm")
-    id( "com.github.fudge.forgedflowerloom") version "2.0.0"
+    id("com.github.fudge.forgedflowerloom") version "2.0.0"
 }
 
 java {
@@ -32,16 +32,16 @@ version = prop("mod_version")
 group = prop("maven_group")
 
 
-repositories{
+repositories {
 //    jcenter()
-    maven ( url  ="https://dl.bintray.com/shedaniel/cloth" )
-    maven (url = "https://jitpack.io"){
+    maven(url = "https://dl.bintray.com/shedaniel/cloth")
+    maven(url = "https://jitpack.io") {
         metadataSources {
             mavenPom()
             artifact()
         }
         content {
-            includeGroupByRegex ("com.github.Chocohead")
+            includeGroupByRegex("com.github.Chocohead")
         }
     }
 }
@@ -57,9 +57,9 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:${prop("fabric_version")}")
     modImplementation("net.fabricmc:dev-launch-injector:0.2.1+build.8")
     modImplementation("me.shedaniel:architectury:${prop("architectury_version")}:fabric")
-    modRuntime ("com.github.Chocohead:Data-Breaker-Lower:24be1a2"){
-        exclude (module = "fabric-loader")
-        exclude (group = "net.fabricmc.fabric-api")
+    modRuntime("com.github.Chocohead:Data-Breaker-Lower:24be1a2") {
+        exclude(module = "fabric-loader")
+        exclude(group = "net.fabricmc.fabric-api")
     }
 
 
@@ -171,6 +171,16 @@ val supplyDevLaunchConfig by tasks.creating(Copy::class) {
     into(namedTestsRunDir)
 }
 
+//TODO: don't actually include tests in all jars
+tasks.withType<org.gradle.jvm.tasks.Jar> {
+    getAllAssemblyTasks().filter { it.task.isTestAssemblyTask() }
+        .forEach {from(fileTree(it.destinationDir)) }
+
+//    afterEvaluate {
+//        println(inputs.files.toList())
+//    }
+}
+
 // Apply to all test types
 tasks.withType<Test> {
     // Without this tests don't actually print without the -i flag
@@ -179,6 +189,9 @@ tasks.withType<Test> {
     useJUnitPlatform()
     // Without this tests won't rerun when no changes occur
     outputs.upToDateWhen { false }
+
+    setForkEvery(1)
+    this.maxParallelForks = 10
 }
 
 tasks.getByName<Test>("test") {
@@ -283,6 +296,13 @@ fun isFabricMod(artifact: ResolvedArtifact): Boolean {
     }
 }
 
+class DestinationTask(val destinationDir: File, val task: Task)
+
+fun getAllAssemblyTasks() =
+    (project.tasks.withType<ProcessResources>()).map { DestinationTask(it.destinationDir, it) } +
+            project.tasks.withType<AbstractCompile>().map { DestinationTask(it.destinationDir, it) }
+
+fun Task.isTestAssemblyTask() = name.startsWith("processTestResources") || name.startsWith("compileTest")
 
 fun setClasspathToIntermediary(
     project: Project,
@@ -291,20 +311,25 @@ fun setClasspathToIntermediary(
 ) {
     val remappedDependencyMods = getLoom().remappedModCache
 
-    val nonTestResourceDirectories = project.tasks.withType<ProcessResources>()
-        .filter { !it.name.startsWith("processTestResources") }
-        .map { it.destinationDir }
-    val nonTestBinaryDirectories = project.tasks.withType<AbstractCompile>()
-        .filter { !it.name.startsWith("compileTest") }
-        .map { it.destinationDir }
+//    val nonTestAssemblyDirectories = project.tasks
+//    val nonTestResourceDirectories = project.tasks.withType<ProcessResources>()
+//        .filter { !it.name.startsWith("processTestResources") }
+//        .map { it.destinationDir }
+//    val nonTestBinaryDirectories = project.tasks.withType<AbstractCompile>()
+//        .filter { !it.name.startsWith("compileTest") }
+//        .map { it.destinationDir }
+
+    // These contain the named binaries of our mod
+    val modAssemblyDirectories = getAllAssemblyTasks().map { it.destinationDir }
 
     val namedJarsToBeFilteredOut = listOf(
         getNamedMcJar()!!,
         remappedDependencyMods
-    ) + nonTestResourceDirectories + nonTestBinaryDirectories
+    ) + modAssemblyDirectories
 
 
-    val addedIntJars = project.files(getIntermediaryMcJar()!!, buildGradle.getIntermediaryLoaderJar(), getModIntermediaryJar())
+    val addedIntJars =
+        project.files(getIntermediaryMcJar()!!, buildGradle.getIntermediaryLoaderJar(), getModIntermediaryJar())
 
     fun File.filtersOutClasspathEntry(entry: File): Boolean {
         return if (isDirectory) entry.absolutePath.startsWith(absolutePath)
@@ -313,7 +338,7 @@ fun setClasspathToIntermediary(
 
     // Remove named cp entries and add intermediary cp entries
     test.classpath = test.classpath.filter { cpEntry ->
-       namedJarsToBeFilteredOut.all { !it.filtersOutClasspathEntry(cpEntry) }
+        namedJarsToBeFilteredOut.all { !it.filtersOutClasspathEntry(cpEntry) }
     } + addedIntJars
 }
 
