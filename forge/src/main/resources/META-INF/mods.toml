@@ -1,0 +1,28 @@
+modLoader = "javafml"
+loaderVersion = "[35,)"
+issueTrackerURL = "https://github.com/natanfudge/TestMC/issues"
+license = "MIT"
+
+[[mods]]
+modId = "testmc"
+version = "${version}"
+displayName = "TestMC"
+authors = "Fudge"
+description = '''
+Framework for automatic testing of Minecraft mods
+'''
+logoFile = "icon.png"
+
+[[dependencies.testmc]]
+modId = "forge"
+mandatory = true
+versionRange = "[35,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.testmc]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.16.2,)"
+ordering = "NONE"
+side = "BOTH"

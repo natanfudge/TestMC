@@ -1,0 +1,83 @@
+plugins {
+    id 'java-gradle-plugin'
+    id "com.gradle.plugin-publish" version "0.12.0"
+    id("org.gradle.kotlin.kotlin-dsl") version "1.4.9"
+}
+
+group 'io.github.fudge'
+version project.version
+archivesBaseName = "testmc"
+
+repositories {
+    mavenCentral()
+    maven { url = "https://maven.fabricmc.net/" }
+    jcenter()
+}
+
+
+
+dependencies {
+    implementation "net.fabricmc:fabric-loom:$loom_version"
+    implementation "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+}
+
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+java {
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            archivesBaseName = project.archivesBaseName
+        }
+    }
+}
+
+gradlePlugin {
+    plugins {
+        testmc {
+            id = 'io.github.natanfudge.testmc'
+            implementationClass = 'io.github.natanfudge.TestMCPlugin'
+        }
+    }
+}
+
+pluginBundle {
+    website = 'https://github.com/natanfudge/TestMC/'
+    vcsUrl = 'https://github.com/natanfudge/TestMC/'
+    description = 'Framework for automatic testing of Minecraft mods'
+    tags = ['fabric', 'forge','testing','architectury','minecraft']
+
+    plugins {
+        testmc {
+            // id is captured from java-gradle-plugin configuration
+            displayName = 'TestMC'
+        }
+    }
+}
+
+
+task updateTemplate(type: Copy) {
+    group = "template"
+    description = "Switches out variables like \$total_version in .template.md files, and copies the results into .md files."
+    from(rootDir)
+    include("**/*.template.md")
+    filesMatching("**/*.template.md") {
+        def extensionLength = ".template.md".length()
+
+        name = sourceName.substring(0, sourceName.length() - extensionLength) + ".md"
+        expand("version": project.version)
+    }
+    destinationDir = rootDir
+}
+
+tasks.publishPlugins.dependsOn(tasks.updateTemplate)

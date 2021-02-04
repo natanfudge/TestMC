@@ -1,15 +1,23 @@
 pluginManagement {
-    plugins {
-        id("fabric-loom") version loom_version
-        id("maven-publish")
-        id "org.jetbrains.kotlin.jvm" version kotlin_version
-    }
     repositories {
         jcenter()
-        maven {
-            name = 'Fabric'
-            url = 'https://maven.fabricmc.net/'
-        }
+        maven { url "https://maven.fabricmc.net/" }
+        maven { url "https://dl.bintray.com/shedaniel/cloth" }
+        maven { url "https://files.minecraftforge.net/maven/" }
         gradlePluginPortal()
     }
+
+    plugins {
+        id("forgified-fabric-loom") version loom_version
+        id "org.jetbrains.kotlin.jvm" version kotlin_version
+        id "architectury-plugin" version architectury_plugin_version
+        id("com.github.fudge.forgedflowerloom") version forgedflower_loom_version
+    }
 }
+
+include("common")
+include("fabric")
+include("forge")
+include("plugin")
+
+rootProject.name = "TestMC"
