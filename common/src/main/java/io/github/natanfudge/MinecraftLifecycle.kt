@@ -58,20 +58,12 @@ interface Platform {
         val code = TestCode {
             launch {
                 testCode()
-                println("end!")
                 closeServer()
-                println("close!")
                 unlock()
-                println("unlock!")
-//                closeMinecraft()
             }
         }
         startMcInstance(code, envType)
     }
-
-
-
-
 
 
     @PublishedApi internal suspend fun closeServer() {
@@ -89,7 +81,6 @@ interface Platform {
             clo.condition.signal()
         }
     }
-//}
 
 class MinecraftContext @PublishedApi internal constructor() {
     @PublishedApi

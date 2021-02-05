@@ -4,8 +4,8 @@ plugins {
     id("org.gradle.kotlin.kotlin-dsl") version "1.4.9"
 }
 
-group 'io.github.fudge'
-version project.version
+group 'io.github.natanfudge'
+version "0.0.1"
 archivesBaseName = "testmc"
 
 repositories {

@@ -5,6 +5,7 @@ pluginManagement {
         maven { url "https://dl.bintray.com/shedaniel/cloth" }
         maven { url "https://files.minecraftforge.net/maven/" }
         gradlePluginPortal()
+        mavenLocal()
     }
 
     plugins {

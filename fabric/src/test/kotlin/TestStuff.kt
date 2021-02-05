@@ -1,6 +1,7 @@
 import io.github.natanfudge.FabricPlatform
 import io.github.natanfudge.startClient
 import io.github.natanfudge.startServer
+import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Test
 
 
